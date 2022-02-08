@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="generator" content="Pelican" />
+        <title>Samplepost with KML track</title>
+        <link rel="stylesheet" href="./theme/css/main.css" />
+        <meta name="description" content="This post contains a KML file, which was converted by GPSBabel in order to be displayed by leaflet-gpx successfully. You can modify how GPSBabel..." />
+
+	<link rel="stylesheet" href="theme/css/leaflet.css" />
+</head>
+
+<body id="index" class="home">
+        <header id="banner" class="body">
+                <h1><a href="./">Pelitrack Sample Project</a></h1>
+                <nav><ul>
+                    <li class="active"><a href="./category/misc.html">misc</a></li>
+                </ul></nav>
+        </header><!-- /#banner -->
+<section id="content" class="body">
+  <article>
+    <header>
+      <h1 class="entry-title">
+        <a href="./samplepost-with-kml-track.html" rel="bookmark"
+           title="Permalink to Samplepost with KML track">Samplepost with KML track</a></h1>
+    </header>
+
+    <div class="entry-content">
+<footer class="post-info">
+        <abbr class="published" title="2022-02-09T20:00:00+01:00">
+                Published: Wed 09 February 2022
+        </abbr>
+
+        <address class="vcard author">
+                By                         <a class="url fn" href="./author/flugschwein.html">Flugschwein</a>
+        </address>
+<p>In <a href="./category/misc.html">misc</a>.</p>
+
+</footer><!-- /.post-info --><script src="theme/js/leaflet.js"></script>
+<script src="theme/js/gpx.min.js"></script>
+<script src="theme/js/leaflet-providers.js"></script>
+
+<div id="samplepost-with-kml-track-map", style="height: 480px; width: 100%"></div>
+<script>
+	var map = L.map('samplepost-with-kml-track-map');
+	L.tileLayer.provider('OpenStreetMap.Mapnik').addTo(map);
+	var gpx = 'tracks/samplepost-with-kml-track.gpx';
+	new L.GPX(gpx, {async: true,
+						 marker_options: {
+										  startIconUrl:  'theme/images/icons/pin-icon-start.png',
+										  endIconUrl: 'theme/images/icons/pin-icon-end.png',
+										  shadowUrl: 'theme/images/icons/pin-shadow.png'}}).on('loaded', function(e) {
+		map.fitBounds(e.target.getBounds());
+	}).addTo(map);
+</script>      <p>This post contains a KML file, which was converted by GPSBabel in order to be displayed by leaflet-gpx successfully.
+You can modify how GPSBabel converts and modifies you files by setting the <code>PELITRACK_GPSBABEL_FILTERS</code> in you <code>pelicanconf.py</code>.</p>
+    </div><!-- /.entry-content -->
+
+  </article>
+</section>
+        <section id="extras" class="body">
+                <div class="blogroll">
+                        <h2>links</h2>
+                        <ul>
+                            <li><a href="https://getpelican.com/">Pelican</a></li>
+                            <li><a href="https://www.python.org/">Python.org</a></li>
+                            <li><a href="https://palletsprojects.com/p/jinja/">Jinja2</a></li>
+                            <li><a href="#">You can modify those links in your config file</a></li>
+                        </ul>
+                </div><!-- /.blogroll -->
+                <div class="social">
+                        <h2>social</h2>
+                        <ul>
+
+                            <li><a href="#">You can add links in your config file</a></li>
+                            <li><a href="#">Another social link</a></li>
+                        </ul>
+                </div><!-- /.social -->
+        </section><!-- /#extras -->
+
+        <footer id="contentinfo" class="body">
+                <address id="about" class="vcard body">
+                Proudly powered by <a href="https://getpelican.com/">Pelican</a>, which takes great advantage of <a href="https://www.python.org/">Python</a>.
+                </address><!-- /#about -->
+
+                <p>The theme is by <a href="https://www.smashingmagazine.com/2009/08/designing-a-html-5-layout-from-scratch/">Smashing Magazine</a>, thanks!</p>
+        </footer><!-- /#contentinfo -->
+
+</body>
+</html>
