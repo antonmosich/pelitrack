@@ -1,0 +1,13 @@
+<script src="theme/js/leaflet.js"></script>
+<script src="theme/js/gpx.min.js"></script>
+<script src="theme/js/leaflet-providers.js"></script>
+
+<div id="{{ article.slug }}-map", style="height: {{ PELITRACK_HEIGHT }}; width: {{ PELITRACK_WIDTH }}"></div>
+<script>
+	var map = L.map('{{ article.slug }}-map');
+	L.tileLayer.provider('{{ PELITRACK_PROVIDER }}').addTo(map);
+	var gpx = '{{ article.track_location }}';
+	new L.GPX(gpx, {{ PELITRACK_GPX_OPTIONS }}).on('loaded', function(e) {
+		map.fitBounds(e.target.getBounds());
+	}).addTo(map);
+</script>
