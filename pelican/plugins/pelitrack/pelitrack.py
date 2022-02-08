@@ -64,7 +64,10 @@ def process_track(article: Article):
             os.path.join(pelican_output_path, location),
         )
     else:
-        assert len(track) > 1, f"No filetype found for {track[0]} in {article.slug}"
+        if len(track) <= 1:
+            logger.warning("No filetype found for %s in %s", track[0], article.slug)
+            article.track = None
+            return
         command = [
             pelican_settings["PELITRACK_GPSBABEL_PATH"],
             "-i",
@@ -82,7 +85,7 @@ def process_track(article: Article):
         command += ["-o gpx", "-F", os.path.join(pelican_output_path, location)]
         command = " ".join(command)
 
-        logger.debug(f"Running GPSBabel with command: {command}")
+        logger.debug("Running GPSBabel with command: %s", command)
 
         comm_exit = os.system(command)
         if comm_exit != 0:
