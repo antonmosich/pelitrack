@@ -1,4 +1,6 @@
+"""Add GPS Tracks to your pelican articles."""
 import itertools
+import json
 import logging
 import os
 import shutil
@@ -12,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def initialized(pelican: Pelican):
-    """Initialize the default settings"""
+    """Initialize the default settings."""
     DEFAULT_CONFIG.setdefault("PELITRACK_GPX_OUTPUT_PATH", "tracks")
     DEFAULT_CONFIG.setdefault("PELITRACK_PROVIDER", "OpenStreetMap.Mapnik")
     DEFAULT_CONFIG.setdefault("PELITRACK_HEIGHT", "480px")
@@ -23,6 +25,25 @@ def initialized(pelican: Pelican):
     )
     DEFAULT_CONFIG.setdefault("PELITRACK_USE_GPSBABEL", True)
     DEFAULT_CONFIG.setdefault("PELITRACK_GPX_OPTIONS", "{async: true}")
+    DEFAULT_CONFIG.setdefault(
+        "PELITRACK_SCRIPT_LOCATIONS",
+        {
+            "leaflet.js": "theme",
+            "leaflet.css": "theme",
+            "gpx.min.js": "theme",
+            "leaflet-providers.js": "theme",
+        },
+    )
+    DEFAULT_CONFIG.setdefault("PELITRACK_GPX_ICON_DIR", "../leaflet-gpx")
+    DEFAULT_CONFIG.setdefault(
+        "PELITRACK_GPX_ICON_FILENAMES",
+        [
+            "pin-icon-start.png",
+            "pin-icon-end.png",
+            "pin-icon-wpt.png",
+            "pin-shadow.png",
+        ],
+    )
 
     if pelican:
         pelican.settings.setdefault("PELITRACK_GPX_OUTPUT_PATH", "tracks")
@@ -35,25 +56,102 @@ def initialized(pelican: Pelican):
         )
         pelican.settings.setdefault("PELITRACK_USE_GPSBABEL", True)
         pelican.settings.setdefault("PELITRACK_GPX_OPTIONS", "{async: true}")
+        pelican.settings.setdefault(
+            "PELITRACK_SCRIPT_LOCATIONS",
+            {
+                "leaflet.js": "theme",
+                "leaflet.css": "theme",
+                "gpx.min.js": "theme",
+                "leaflet-providers.js": "theme",
+            },
+        ),
+        pelican.settings.setdefault("PELITRACK_GPX_ICON_DIR", "../leaflet-gpx")
+        pelican.settings.setdefault(
+            "PELITRACK_GPX_ICON_FILENAMES",
+            [
+                "pin-icon-start.png",
+                "pin-icon-end.png",
+                "pin-icon-wpt.png",
+                "pin-shadow.png",
+            ],
+        )
 
     global pelican_settings
     pelican_settings = pelican.settings
     global pelican_output_path
     pelican_output_path = pelican.output_path
 
-    os.makedirs(
-        os.path.join(
-            pelican_output_path, pelican_settings["PELITRACK_GPX_OUTPUT_PATH"]
-        ),
-        exist_ok=True,
+    replace_online_scripts()
+
+
+def copy_pin_icons(article_generator, writer):
+    """Copy icon files needed for leaflet-gpx to root of the website."""
+    for filename in pelican_settings["PELITRACK_GPX_ICON_FILENAMES"]:
+        file = os.path.join(pelican_settings["PELITRACK_GPX_ICON_DIR"], filename)
+        shutil.copyfile(file, os.path.join(pelican_output_path, filename))
+
+
+def replace_online_scripts():
+    """
+    Replace "online" in the script locations config with the corresponding URLs.
+
+    Returns
+    -------
+    None.
+
+    """
+    online_script_locations = {
+        "leaflet.js": "https://unpkg.com/leaflet@1.7.1/dist/leaflet.js",
+        "leaflet.css": "https://unpkg.com/leaflet@1.7.1/dist/leaflet.css",
+        "gpx.min.js": "https://cdnjs.cloudflare.com/ajax/"
+        "libs/leaflet-gpx/1.7.0/gpx.min.js",
+        "leaflet-providers.js": "http://leaflet-extras.github.io/"
+        "leaflet-providers/leaflet-providers.js",
+    }
+
+    theme_script_locations = {
+        "leaflet.js": "js/leaflet.js",
+        "leaflet.css": "css/leaflet.css",
+        "gpx.min.js": "js/gpx.min.js",
+        "leaflet-providers.js": "js/leaflet-providers.js",
+    }
+
+    pelican_settings["PELITRACK_SCRIPT_LOCATIONS"] = (
+        DEFAULT_CONFIG["PELITRACK_SCRIPT_LOCATIONS"]
+        | pelican_settings["PELITRACK_SCRIPT_LOCATIONS"]
     )
 
+    for key, value in pelican_settings["PELITRACK_SCRIPT_LOCATIONS"].items():
+        if value == "online":
+            if key == "leaflet-providers.js":
+                logging.warning(
+                    "Please host leaflet-providers.js yourself."
+                    " That isn't the intended way to use it"
+                )
+            pelican_settings["PELITRACK_SCRIPT_LOCATIONS"][
+                key
+            ] = online_script_locations[key]
+        elif value == "theme":
+            pelican_settings["PELITRACK_SCRIPT_LOCATIONS"][key] = os.path.join(
+                pelican_settings["THEME_STATIC_DIR"], theme_script_locations[key]
+            )
+    logger.debug("Script locations: %s", pelican_settings["PELITRACK_SCRIPT_LOCATIONS"])
 
-def process_track(article: Article):
-    if "track" not in article.metadata:
-        return
-    track = article.metadata.get("track").split(",")
 
+def parse_individual_settings(track):
+    """Parse additional settings for a given track.
+
+    Parameters
+    ----------
+    track : list
+        The list of arguments given for the track metadata tag.
+
+    Returns
+    -------
+    settings : dict
+        Settings considering the specified settings but falling back on the defaults.
+
+    """
     default_settings = {
         "gpx_output_path": pelican_settings["PELITRACK_GPX_OUTPUT_PATH"],
         "height": pelican_settings["PELITRACK_HEIGHT"],
@@ -70,8 +168,44 @@ def process_track(article: Article):
         for arg in track[2:]:
             updates.append(arg.split("=>"))
         settings = default_settings | dict(updates)
+        if isinstance(settings["gpsbabel_filters"], str):
+            settings["gpsbabel_filters"] = json.loads(settings["gpsbabel_filters"])
+        logger.debug("Pelitrack settings: %s", settings)
     else:
         settings = default_settings
+
+    return settings
+
+
+def process_track(article: Article):
+    """
+    Process track if present in an article.
+
+    This function will process the track metadata tag and set a few variables,
+    which can then be used by jinja2 for creating the leaflet. It will also
+    convert, modify and copy the GPS tracks specified in the tag.
+
+    Parameters
+    ----------
+    article : Article
+        The article object to process.
+
+    Returns
+    -------
+    None.
+
+    """
+    if "track" not in article.metadata:
+        return
+    track = article.metadata.get("track").split(";")
+    os.makedirs(
+        os.path.join(
+            pelican_output_path, pelican_settings["PELITRACK_GPX_OUTPUT_PATH"]
+        ),
+        exist_ok=True,
+    )
+
+    settings = parse_individual_settings(track)
 
     location = os.path.join(settings["gpx_output_path"], f"{article.slug}.gpx")
 
@@ -114,10 +248,13 @@ def process_track(article: Article):
 
 
 def handle_articles_generator(gen: ArticlesGenerator):
+    """Handle the ArticlesGenerator from the signal to process the articles."""
     for article in itertools.chain(gen.articles, gen.drafts, gen.translations):
         process_track(article)
 
 
 def register():
+    """Connect the relevant functions to the respective functions."""
     signals.initialized.connect(initialized)
+    signals.article_writer_finalized.connect(copy_pin_icons)
     signals.article_generator_finalized.connect(handle_articles_generator)
