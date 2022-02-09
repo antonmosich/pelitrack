@@ -76,10 +76,28 @@ Usage remains the same, but you don't have to set the fileformat in order to use
 
 You can change the following options:
 * `PELITRACK_GPSBABEL_FILTERS`:
-This changes how GPSBabel modifies the GPS Tracks while converting them. You can look at the documentation of the available filters to find out how to reduce the filesize further etc.
-Find the documentation [here][]
+This changes how GPSBabel modifies the GPS Tracks while converting them. You can look at the [documentation][] of the available filters to find out how to reduce the filesize further etc.
 
-[here]: https://www.gpsbabel.org/htmldoc-1.8.0/Data_Filters.html
+* `PELITRACK_PROVIDER`:
+This changes the map background used by leaflet. The value you set it to should be a string containing a code for the `leaflet-providers` project. You can find the available maps on the [Leaflet Provider Demo][]
+Should you want to use maps which require authentification you need to change the `leaflet-providers.js`. You just need to change "<'your accessToken'>" to include your access token.
+
+* `PELITRACK_GPX_OUTPUT_PATH`: The path Pelitrack uses to store the processed gpx files. Relative to the output directory.
+
+* `PELITRACK_WIDTH`: Default width of the leaflet `div`.
+
+* `PELITRACK_HEIGHT`: Default height of the leaflet `div`.
+
+* `PELITRACK_GPSBABEL_PATH`: The exact location of you GPSBabel executable.
+
+* `PELITRACK_GPX_OPTIONS`: The options that will be passed to the leaflet-gpx GPX function. Should be a string containing the js-dict as it would be in the source code. See the [leaflet-gpx documentation][]
+for details on the available options. Use this option to change the width/color of the track on the map and similar settings.
+
+* `PELITRACK_USE_GPSBABEL`: A bool value defining whether GPSBabel should be used for converting and processing the GPS track files, or if pelitrack should just copy the gpx files over unmodified.
+
+[documentation]: https://www.gpsbabel.org/htmldoc-1.8.0/Data_Filters.html
+[Leaflet Provider Demo]: https://leaflet-extras.github.io/leaflet-providers/preview/
+[leaflet-gpx documentation]: https://github.com/mpetazzoni/leaflet-gpx#usage
 
 Contributing
 ------------
