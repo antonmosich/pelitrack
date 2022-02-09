@@ -41,12 +41,6 @@ def initialized(pelican: Pelican):
     global pelican_output_path
     pelican_output_path = pelican.output_path
 
-
-def process_track(article: Article):
-    if "track" not in article.metadata:
-        return
-    track = article.metadata.get("track").split(",")
-
     os.makedirs(
         os.path.join(
             pelican_output_path, pelican_settings["PELITRACK_GPX_OUTPUT_PATH"]
@@ -54,11 +48,34 @@ def process_track(article: Article):
         exist_ok=True,
     )
 
-    location = os.path.join(
-        pelican_settings["PELITRACK_GPX_OUTPUT_PATH"], f"{article.slug}.gpx"
-    )
 
-    if not pelican_settings["PELITRACK_USE_GPSBABEL"]:
+def process_track(article: Article):
+    if "track" not in article.metadata:
+        return
+    track = article.metadata.get("track").split(",")
+
+    default_settings = {
+        "gpx_output_path": pelican_settings["PELITRACK_GPX_OUTPUT_PATH"],
+        "height": pelican_settings["PELITRACK_HEIGHT"],
+        "width": pelican_settings["PELITRACK_WIDTH"],
+        "provider": pelican_settings["PELITRACK_PROVIDER"],
+        "use_gpsbabel": pelican_settings["PELITRACK_USE_GPSBABEL"],
+        "gpsbabel_filters": pelican_settings["PELITRACK_GPSBABEL_FILTERS"],
+        "gpx_options": pelican_settings["PELITRACK_GPX_OPTIONS"],
+    }
+
+    if len(track) > 2:
+        logger.debug("Found additional arguments for gps track.")
+        updates = []
+        for arg in track[2:]:
+            updates.append(arg.split("=>"))
+        settings = default_settings | dict(updates)
+    else:
+        settings = default_settings
+
+    location = os.path.join(settings["gpx_output_path"], f"{article.slug}.gpx")
+
+    if not settings["use_gpsbabel"]:
         shutil.copyfile(
             track[0],
             os.path.join(pelican_output_path, location),
@@ -75,9 +92,7 @@ def process_track(article: Article):
             "-f",
             track[0],
         ]
-        for gps_filter, options in pelican_settings[
-            "PELITRACK_GPSBABEL_FILTERS"
-        ].items():
+        for gps_filter, options in settings["gpsbabel_filters"].items():
             command.append("-x")
             fil = ",".join([gps_filter] + [options])
             command.append(fil)
@@ -95,6 +110,7 @@ def process_track(article: Article):
         location = pelican_settings["SITEURL"] + location
 
     article.track_location = location
+    article.track_settings = settings
 
 
 def handle_articles_generator(gen: ArticlesGenerator):
