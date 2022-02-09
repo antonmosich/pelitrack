@@ -49,7 +49,8 @@ files into you theme folder. You will need to download leaflet, leaflet-gpx and 
 │  │  │  ├─ pin-icon-end.png
 │  │  │  ├─ pin-icon-start.png
 │  │  │  ├─ pin-icon-wpt.png
-│  │  │  ├─ pin-shadow.png```
+│  │  │  ├─ pin-shadow.png
+```
 You will probably want to move the `track.html` from `pelitrack-example/theme/templates/track.html` to your own theme. Then you can modify your theme with an `{% include track.html %}` wherever
 you want to include the associated track. In those pages, you need to include the `leaflet.css` in the head as well.
 
@@ -71,6 +72,14 @@ Pelitrack will then convert the file to gpx and apply the configured filters (by
 If you don't want to use GPSBabel just set `PELITRACK_USE_GPSBABEL` to `False` in your config. Pelitrack only supports `gpx` files that way, and isn't able to modify or simplify them.
 Usage remains the same, but you don't have to set the fileformat in order to use it.
 
+### Configuration
+
+You can change the following options:
+* `PELITRACK_GPSBABEL_FILTERS`:
+This changes how GPSBabel modifies the GPS Tracks while converting them. You can look at the documentation of the available filters to find out how to reduce the filesize further etc.
+Find the documentation [here][]
+
+[here]: https://www.gpsbabel.org/htmldoc-1.8.0/Data_Filters.html
 
 Contributing
 ------------
