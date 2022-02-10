@@ -12,6 +12,13 @@ from pelican.settings import DEFAULT_CONFIG
 
 logger = logging.getLogger(__name__)
 
+try:
+    import xmlformatter
+except ImportError:
+    logger.warning("xmlformatter isn't installed. gpx files won't be minified.")
+
+processed_tracks = []
+
 
 def initialized(pelican: Pelican):
     """Initialize the default settings."""
@@ -246,6 +253,8 @@ def process_track(article: Article):
     article.track_location = location
     article.track_settings = settings
 
+    processed_tracks.append(location)
+
 
 def handle_articles_generator(gen: ArticlesGenerator):
     """Handle the ArticlesGenerator from the signal to process the articles."""
@@ -253,8 +262,31 @@ def handle_articles_generator(gen: ArticlesGenerator):
         process_track(article)
 
 
+def minify_gpx(pelican: Pelican):
+    """Minify all generated gpx files.
+
+    Parameters
+    ----------
+    pelican : Pelican
+        Pelican instance given by the signal.
+
+    Returns
+    -------
+    None.
+
+    """
+    formatter = xmlformatter.Formatter(compress=True)
+    for location in processed_tracks:
+        location = os.path.join(pelican_output_path, location)
+        formatted_bytes = formatter.format_file(location)
+        with open(location, "wb") as file:
+            file.write(formatted_bytes)
+    logger.warning("%s", processed_tracks)
+
+
 def register():
     """Connect the relevant functions to the respective functions."""
     signals.initialized.connect(initialized)
     signals.article_writer_finalized.connect(copy_pin_icons)
     signals.article_generator_finalized.connect(handle_articles_generator)
+    signals.finalized.connect(minify_gpx)
