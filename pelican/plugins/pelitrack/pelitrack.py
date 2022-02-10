@@ -34,7 +34,7 @@ def initialized(pelican: Pelican):
             "leaflet-providers.js": "theme",
         },
     )
-    DEFAULT_CONFIG.setdefault("PELITRACK_GPX_ICON_DIR", "../leaflet-gpx")
+    DEFAULT_CONFIG.setdefault("PELITRACK_GPX_ICON_DIR", "./leaflet-gpx")
     DEFAULT_CONFIG.setdefault(
         "PELITRACK_GPX_ICON_FILENAMES",
         [
@@ -65,7 +65,7 @@ def initialized(pelican: Pelican):
                 "leaflet-providers.js": "theme",
             },
         ),
-        pelican.settings.setdefault("PELITRACK_GPX_ICON_DIR", "../leaflet-gpx")
+        pelican.settings.setdefault("PELITRACK_GPX_ICON_DIR", "./leaflet-gpx")
         pelican.settings.setdefault(
             "PELITRACK_GPX_ICON_FILENAMES",
             [
