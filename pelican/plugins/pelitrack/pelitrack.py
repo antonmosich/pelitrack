@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import shutil
+import tempfile
 
 from pelican import Pelican, signals
 from pelican.contents import Article
@@ -14,8 +15,11 @@ logger = logging.getLogger(__name__)
 
 try:
     import xmlformatter
+
+    xmlformatter_available = True
 except ImportError:
-    logger.warning("xmlformatter isn't installed. gpx files won't be minified.")
+    xmlformatter_available = False
+    logger.debug("xmlformatter isn't installed.")
 
 processed_tracks = []
 
@@ -51,6 +55,9 @@ def initialized(pelican: Pelican):
             "pin-shadow.png",
         ],
     )
+    DEFAULT_CONFIG.setdefault("PELITRACK_MINIFY_GPX", False)
+    DEFAULT_CONFIG.setdefault("PELITRACK_GPX_MINIFIER", "minify")
+    DEFAULT_CONFIG.setdefault("PELITRACK_MINIFY_PATH", shutil.which("minify"))
 
     if pelican:
         pelican.settings.setdefault("PELITRACK_GPX_OUTPUT_PATH", "tracks")
@@ -82,6 +89,9 @@ def initialized(pelican: Pelican):
                 "pin-shadow.png",
             ],
         )
+        pelican.settings.setdefault("PELITRACK_MINIFY_GPX", False)
+        pelican.settings.setdefault("PELITRACK_GPX_MINIFIER", "minify")
+        pelican.settings.setdefault("PELITRACK_MINIFY_PATH", shutil.which("minify"))
 
     global pelican_settings
     pelican_settings = pelican.settings
@@ -177,7 +187,7 @@ def parse_individual_settings(track):
         settings = default_settings | dict(updates)
         if isinstance(settings["gpsbabel_filters"], str):
             settings["gpsbabel_filters"] = json.loads(settings["gpsbabel_filters"])
-        logger.debug("Pelitrack settings: %s", settings)
+        logger.debug("Modified pelitrack settings: %s", settings)
     else:
         settings = default_settings
 
@@ -242,10 +252,11 @@ def process_track(article: Article):
         command = " ".join(command)
 
         logger.debug("Running GPSBabel with command: %s", command)
-
         comm_exit = os.system(command)
+
         if comm_exit != 0:
-            logger.warning("GPSBabel execution did not succeed")
+            logger.warning("GPSBabel execution did not succeed.")
+            logger.debug("GPSBabel error code: %s", comm_exit)
 
     if not pelican_settings["RELATIVE_URLS"]:
         location = pelican_settings["SITEURL"] + location
@@ -275,13 +286,82 @@ def minify_gpx(pelican: Pelican):
     None.
 
     """
+    if not pelican_settings["PELITRACK_MINIFY_GPX"]:
+        return
+
+    minify_functions = {
+        "xmlformatter": minify_with_xmlformatter,
+        "minify": minify_with_minify,
+    }
+
+    if (
+        pelican_settings["PELITRACK_GPX_MINIFIER"] == "xmlformatter"
+        and not xmlformatter_available
+    ):
+        logging.warning(
+            "Can not use xmlformatter for minifying gpx files."
+            " Please check your installation and configuration."
+        )
+    elif pelican_settings["PELITRACK_GPX_MINIFIER"] not in minify_functions:
+        logging.warning(
+            "GPX minifier %s is not known. Make sure to check your spelling.",
+            pelican_settings["PELITRACK_GPX_MINIFIER"],
+        )
+    else:
+        for location in processed_tracks:
+            location = os.path.join(pelican_output_path, location)
+            minify_functions[pelican_settings["PELITRACK_GPX_MINIFIER"]](location)
+
+
+def minify_with_xmlformatter(filepath: str):
+    """Minify gpx file with xmlformatter.
+
+    Replaces the provided gpx file with a minified version of itself.
+    The module used for minifying in this function is very slow.
+
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the gpx file that should be minified.
+
+    Returns
+    -------
+    None.
+
+    """
     formatter = xmlformatter.Formatter(compress=True)
-    for location in processed_tracks:
-        location = os.path.join(pelican_output_path, location)
-        formatted_bytes = formatter.format_file(location)
-        with open(location, "wb") as file:
-            file.write(formatted_bytes)
-    logger.warning("%s", processed_tracks)
+    formatted_bytes = formatter.format_file(filepath)
+    with open(filepath, "wb") as file:
+        file.write(formatted_bytes)
+
+
+def minify_with_minify(filepath: str):
+    """Minify gpx file with minify.
+
+    Replaces the provided gpx file with a minified version of itself.
+    This function uses "minify" for minifying. Much faster than xmlformatter.
+
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the gpx file that should be minified.
+
+    Returns
+    -------
+    None.
+
+    """
+    minify = pelican_settings["PELITRACK_MINIFY_PATH"]
+    tmp_file = os.path.join(tempfile.gettempdir(), "tmp.gpx")
+    command = " ".join([minify, "--type xml", filepath, ">", tmp_file])
+    logging.debug("Executing minify with command %s.", command)
+    errorcode = os.system(command)
+    if errorcode != 0:
+        logging.error("minify execution failed. %s was left untouched.", filepath)
+        return
+    shutil.move(tmp_file, filepath)
 
 
 def register():
