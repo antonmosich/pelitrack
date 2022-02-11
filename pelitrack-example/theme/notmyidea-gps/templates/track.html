@@ -1,13 +1,13 @@
-<script src="theme/js/leaflet.js"></script>
-<script src="theme/js/gpx.min.js"></script>
-<script src="theme/js/leaflet-providers.js"></script>
-
-<div id="{{ article.slug }}-map", style="height: {{ PELITRACK_HEIGHT }}; width: {{ PELITRACK_WIDTH }}"></div>
+<link rel="stylesheet" href="{{ PELITRACK_SCRIPT_LOCATIONS['leaflet.css'] }}" />
+<script src="{{ PELITRACK_SCRIPT_LOCATIONS['leaflet.js'] }}"></script>
+<script src="{{ PELITRACK_SCRIPT_LOCATIONS['gpx.min.js'] }}"></script>
+<script src="{{ PELITRACK_SCRIPT_LOCATIONS['leaflet-providers.js'] }}"></script>
+<div id="{{ article.slug }}-map", style="height: {{ article.track_settings['height'] }}; width: {{ article.track_settings['width'] }}"></div>
 <script>
 	var map = L.map('{{ article.slug }}-map');
-	L.tileLayer.provider('{{ PELITRACK_PROVIDER }}').addTo(map);
+	L.tileLayer.provider('{{ article.track_settings['provider'] }}').addTo(map);
 	var gpx = '{{ article.track_location }}';
-	new L.GPX(gpx, {{ PELITRACK_GPX_OPTIONS }}).on('loaded', function(e) {
+	new L.GPX(gpx, {{ article.track_settings['gpx_options'] }}).on('loaded', function(e) {
 		map.fitBounds(e.target.getBounds());
 	}).addTo(map);
 </script>
