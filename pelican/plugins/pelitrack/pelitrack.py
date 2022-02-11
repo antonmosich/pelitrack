@@ -3,8 +3,11 @@ import itertools
 import json
 import logging
 import os
+import pathlib
 import shutil
+import subprocess
 import tempfile
+from urllib.parse import urljoin
 
 from pelican import Pelican, signals
 from pelican.contents import Article
@@ -20,7 +23,6 @@ try:
 except ImportError:
     xmlformatter_available = False
     logger.debug("xmlformatter isn't installed.")
-
 processed_tracks = []
 
 
@@ -92,7 +94,6 @@ def initialized(pelican: Pelican):
         pelican.settings.setdefault("PELITRACK_MINIFY_GPX", False)
         pelican.settings.setdefault("PELITRACK_GPX_MINIFIER", "minify")
         pelican.settings.setdefault("PELITRACK_MINIFY_PATH", shutil.which("minify"))
-
     global pelican_settings
     pelican_settings = pelican.settings
     global pelican_output_path
@@ -104,8 +105,8 @@ def initialized(pelican: Pelican):
 def copy_pin_icons(article_generator, writer):
     """Copy icon files needed for leaflet-gpx to root of the website."""
     for filename in pelican_settings["PELITRACK_GPX_ICON_FILENAMES"]:
-        file = os.path.join(pelican_settings["PELITRACK_GPX_ICON_DIR"], filename)
-        shutil.copyfile(file, os.path.join(pelican_output_path, filename))
+        file = pathlib.Path(pelican_settings["PELITRACK_GPX_ICON_DIR"], filename)
+        shutil.copyfile(file, pathlib.Path(pelican_output_path, filename))
 
 
 def replace_online_scripts():
@@ -149,9 +150,20 @@ def replace_online_scripts():
                 key
             ] = online_script_locations[key]
         elif value == "theme":
-            pelican_settings["PELITRACK_SCRIPT_LOCATIONS"][key] = os.path.join(
+            pelican_settings["PELITRACK_SCRIPT_LOCATIONS"][key] = pathlib.Path(
                 pelican_settings["THEME_STATIC_DIR"], theme_script_locations[key]
             )
+
+        path = pelican_settings["PELITRACK_SCRIPT_LOCATIONS"][key]
+        if not isinstance(path, pathlib.Path):
+            path = pathlib.Path(path)
+        if not pelican_settings["RELATIVE_URLS"]:
+            if not path.is_absolute():
+                pelican_settings["PELITRACK_SCRIPT_LOCATIONS"][key] = urljoin(
+                    pelican_settings["SITEURL"], path.as_posix()
+                )
+        else:
+            pelican_settings["PELITRACK_SCRIPT_LOCATIONS"][key] = path.as_posix()
     logger.debug("Script locations: %s", pelican_settings["PELITRACK_SCRIPT_LOCATIONS"])
 
 
@@ -190,7 +202,6 @@ def parse_individual_settings(track):
         logger.debug("Modified pelitrack settings: %s", settings)
     else:
         settings = default_settings
-
     return settings
 
 
@@ -216,7 +227,7 @@ def process_track(article: Article):
         return
     track = article.metadata.get("track").split(";")
     os.makedirs(
-        os.path.join(
+        pathlib.Path(
             pelican_output_path, pelican_settings["PELITRACK_GPX_OUTPUT_PATH"]
         ),
         exist_ok=True,
@@ -224,12 +235,12 @@ def process_track(article: Article):
 
     settings = parse_individual_settings(track)
 
-    location = os.path.join(settings["gpx_output_path"], f"{article.slug}.gpx")
+    location = pathlib.Path(settings["gpx_output_path"], f"{article.slug}.gpx")
 
     if not settings["use_gpsbabel"]:
         shutil.copyfile(
             track[0],
-            os.path.join(pelican_output_path, location),
+            pathlib.Path(pelican_output_path, location),
         )
     else:
         if len(track) <= 1:
@@ -247,24 +258,22 @@ def process_track(article: Article):
             command.append("-x")
             fil = ",".join([gps_filter] + [options])
             command.append(fil)
-
-        command += ["-o gpx", "-F", os.path.join(pelican_output_path, location)]
-        command = " ".join(command)
+        command += ["-o", "gpx", "-F", pathlib.Path(pelican_output_path, location)]
 
         logger.debug("Running GPSBabel with command: %s", command)
-        comm_exit = os.system(command)
+        comm_exit = subprocess.run(command)
 
-        if comm_exit != 0:
+        if comm_exit.returncode != 0:
             logger.warning("GPSBabel execution did not succeed.")
             logger.debug("GPSBabel error code: %s", comm_exit)
+    processed_tracks.append(location)
 
     if not pelican_settings["RELATIVE_URLS"]:
-        location = pelican_settings["SITEURL"] + location
-
+        location = urljoin(pelican_settings["SITEURL"], location.as_posix())
+    else:
+        location = location.as_posix()
     article.track_location = location
     article.track_settings = settings
-
-    processed_tracks.append(location)
 
 
 def handle_articles_generator(gen: ArticlesGenerator):
@@ -288,7 +297,6 @@ def minify_gpx(pelican: Pelican):
     """
     if not pelican_settings["PELITRACK_MINIFY_GPX"]:
         return
-
     minify_functions = {
         "xmlformatter": minify_with_xmlformatter,
         "minify": minify_with_minify,
@@ -309,7 +317,7 @@ def minify_gpx(pelican: Pelican):
         )
     else:
         for location in processed_tracks:
-            location = os.path.join(pelican_output_path, location)
+            location = pathlib.Path(pelican_output_path, location)
             minify_functions[pelican_settings["PELITRACK_GPX_MINIFIER"]](location)
 
 
@@ -354,11 +362,11 @@ def minify_with_minify(filepath: str):
 
     """
     minify = pelican_settings["PELITRACK_MINIFY_PATH"]
-    tmp_file = os.path.join(tempfile.gettempdir(), "tmp.gpx")
-    command = " ".join([minify, "--type xml", filepath, ">", tmp_file])
-    logging.debug("Executing minify with command %s.", command)
-    errorcode = os.system(command)
-    if errorcode != 0:
+    tmp_file = pathlib.Path(tempfile.gettempdir(), "tmp.gpx")
+    command = [minify, filepath, "--type", "xml", "-o", tmp_file]
+    logging.debug("Executing minify with args %s.", command)
+    process = subprocess.run(command)
+    if process.returncode != 0:
         logging.error("minify execution failed. %s was left untouched.", filepath)
         return
     shutil.move(tmp_file, filepath)
