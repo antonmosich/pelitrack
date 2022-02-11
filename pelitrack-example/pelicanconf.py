@@ -1,15 +1,17 @@
-AUTHOR = "Flugschwein"
-SITENAME = "Pelitrack Sample Project"
+AUTHOR = 'Flugschwein'
+SITENAME = 'Pelitrack Sample Project'
 SITEURL = ""
 
-PATH = "content"
+PATH = 'content'
 
-TIMEZONE = "Europe/Vienna"
+TIMEZONE = 'Europe/Vienna'
 
 
-DEFAULT_LANG = "de"
+DEFAULT_LANG = 'de'
 
-THEME = "theme/notmyidea-gps"
+THEME = 'theme/notmyidea-gps'
+
+STATIC_PATHS = []
 
 # Feed generation is usually not desired when developing
 FEED_ALL_ATOM = None
@@ -19,30 +21,18 @@ AUTHOR_FEED_ATOM = None
 AUTHOR_FEED_RSS = None
 
 # Blogroll
-LINKS = (
-    ("Pelican", "https://getpelican.com/"),
-    ("Python.org", "https://www.python.org/"),
-    ("Jinja2", "https://palletsprojects.com/p/jinja/"),
-    ("You can modify those links in your config file", "#"),
-)
+LINKS = (('Pelican', 'https://getpelican.com/'),
+         ('Python.org', 'https://www.python.org/'),
+         ('Jinja2', 'https://palletsprojects.com/p/jinja/'),
+         ('Check out Pelitrack', 'https://github.com/pelican-plugins/pelitrack'),)
 
 # Social widget
-SOCIAL = (
-    ("You can add links in your config file", "#"),
-    ("Another social link", "#"),
-)
+SOCIAL = (('You can add links in your config file', '#'),
+          ('Another social link', '#'),)
 
 DEFAULT_PAGINATION = False
 
-PELITRACK_GPSBABEL_FILTERS = {
-    "simplify": "error=0.01k",
-    "nuketypes": "waypoints",
-}
-
-PELITRACK_GPX_OPTIONS = """{async: true,
-						 marker_options: {
-										  startIconUrl:  'theme/images/icons/pin-icon-start.png',
-										  endIconUrl: 'theme/images/icons/pin-icon-end.png',
-										  shadowUrl: 'theme/images/icons/pin-shadow.png'}}"""
 # Uncomment following line if you want document-relative URLs when developing
 RELATIVE_URLS = True
+
+PELITRACK_MINIFY_GPX = True
