@@ -29,7 +29,7 @@ processed_tracks = []
 def initialized(pelican: Pelican):
     """Initialize the default settings."""
     DEFAULT_CONFIG.setdefault("PELITRACK_GPX_OUTPUT_PATH", "tracks")
-    DEFAULT_CONFIG.setdefault("PELITRACK_PROVIDER", "OpenStreetMap.Mapnik")
+    DEFAULT_CONFIG.setdefault("PELITRACK_PROVIDER", ["OpenStreetMap.Mapnik"])
     DEFAULT_CONFIG.setdefault("PELITRACK_HEIGHT", "480px")
     DEFAULT_CONFIG.setdefault("PELITRACK_WIDTH", "100%")
     DEFAULT_CONFIG.setdefault("PELITRACK_GPSBABEL_PATH", shutil.which("gpsbabel"))
@@ -63,7 +63,7 @@ def initialized(pelican: Pelican):
 
     if pelican:
         pelican.settings.setdefault("PELITRACK_GPX_OUTPUT_PATH", "tracks")
-        pelican.settings.setdefault("PELITRACK_PROVIDER", "OpenStreetMap.Mapnik")
+        pelican.settings.setdefault("PELITRACK_PROVIDER", ["OpenStreetMap.Mapnik"])
         pelican.settings.setdefault("PELITRACK_HEIGHT", "480px")
         pelican.settings.setdefault("PELITRACK_WIDTH", "100%")
         pelican.settings.setdefault("PELITRACK_GPSBABEL_PATH", shutil.which("gpsbabel"))
@@ -100,6 +100,10 @@ def initialized(pelican: Pelican):
     pelican_output_path = pelican.output_path
 
     replace_online_scripts()
+    if isinstance(pelican_settings["PELITRACK_PROVIDER"], str):
+        pelican_settings["PELITRACK_PROVIDER"] = [
+            pelican_settings["PELITRACK_PROVIDER"]
+        ]
 
 
 def copy_pin_icons(article_generator, writer):
@@ -195,7 +199,13 @@ def parse_individual_settings(track):
         logger.debug("Found additional arguments for gps track.")
         updates = []
         for arg in track[2:]:
-            updates.append(arg.split("=>"))
+            arg, val = arg.split("=>")
+            if arg == "provider":
+                if val.startswith("+"):
+                    val = [*pelican_settings["PELITRACK_PROVIDER"], *val.split("+")[1:]]
+                else:
+                    val = val.split("+")
+            updates.append((arg, val))
         settings = default_settings | dict(updates)
         if isinstance(settings["gpsbabel_filters"], str):
             settings["gpsbabel_filters"] = json.loads(settings["gpsbabel_filters"])
