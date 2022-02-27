@@ -215,11 +215,11 @@ def parse_individual_settings(track):
     return settings
 
 
-def process_track(article: Article):
+def process_tracks(article: Article):
     """
-    Process track if present in an article.
+    Process tracks if present in an article.
 
-    This function will process the track metadata tag and set a few variables,
+    This function will process the tracks metadata tag and set a few variables,
     which can then be used by jinja2 for creating the leaflet. It will also
     convert, modify and copy the GPS tracks specified in the tag.
 
@@ -235,7 +235,9 @@ def process_track(article: Article):
     """
     if "track" not in article.metadata:
         return
-    track = article.metadata.get("track").split(";")
+    tracks = article.metadata.get("track").split("&")
+    tracks = [track.split(";") for track in tracks]
+
     os.makedirs(
         pathlib.Path(
             pelican_output_path, pelican_settings["PELITRACK_GPX_OUTPUT_PATH"]
@@ -243,27 +245,32 @@ def process_track(article: Article):
         exist_ok=True,
     )
 
-    settings = parse_individual_settings(track)
+    settings = parse_individual_settings(tracks[-1])
 
     location = pathlib.Path(settings["gpx_output_path"], f"{article.slug}.gpx")
 
     if not settings["use_gpsbabel"]:
-        shutil.copyfile(
-            track[0],
-            pathlib.Path(pelican_output_path, location),
-        )
+        for track in tracks:
+            shutil.copyfile(
+                track[0],
+                pathlib.Path(pelican_output_path, location),
+            )
     else:
-        if len(track) <= 1:
-            logger.warning("No filetype found for %s in %s", track[0], article.slug)
+        if max(map(len, tracks)) <= 1:
+            logger.warning("No filetype found for GPS Tracks in %s", article.slug)
             article.track = None
             return
-        command = [
-            pelican_settings["PELITRACK_GPSBABEL_PATH"],
-            "-i",
-            track[1],
-            "-f",
-            track[0],
-        ]
+
+        command = [pelican_settings["PELITRACK_GPSBABEL_PATH"]]
+        for track in tracks:
+            command.extend(
+                [
+                    "-i",
+                    get_format(track, tracks),
+                    "-f",
+                    track[0],
+                ]
+            )
         for gps_filter, options in settings["gpsbabel_filters"].items():
             command.append("-x")
             fil = ",".join([gps_filter] + [options])
@@ -286,10 +293,17 @@ def process_track(article: Article):
     article.track_settings = settings
 
 
+def get_format(track: list, tracks: list) -> str:
+    if len(track) == 1:
+        return get_format(tracks[tracks.index(track) + 1], tracks)
+    else:
+        return track[1]
+
+
 def handle_articles_generator(gen: ArticlesGenerator):
     """Handle the ArticlesGenerator from the signal to process the articles."""
     for article in itertools.chain(gen.articles, gen.drafts, gen.translations):
-        process_track(article)
+        process_tracks(article)
 
 
 def minify_gpx(pelican: Pelican):
